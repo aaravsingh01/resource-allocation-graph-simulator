@@ -10,8 +10,9 @@ A graphical tool for simulating and analyzing resource allocation graphs to dete
 
 ## Installation
 1. Clone this repository
-2. Open `index.html` in a web browser
-3. Start building your resource allocation graph
+2. Ensure you have D3.js installed. You can include it in your HTML file or install it via npm.
+3. Open `index.html` in a web browser
+4. Start building your resource allocation graph
 
 ## Usage
 - Click "Add Process" to add a process node (green)
