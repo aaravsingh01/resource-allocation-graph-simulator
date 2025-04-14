@@ -30,6 +30,23 @@ document.getElementById("link-type").addEventListener("change", (e) => {
     graph.linkType = e.target.value;
 });
 
+// Function to save the current graph state
+function saveGraph() {
+    const graphState = JSON.stringify(graph);
+    const blob = new Blob([graphState], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'graph.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Add event listener for the save button
+document.getElementById("save-graph").addEventListener("click", saveGraph);
+
 // Function to update graph visualization
 function updateGraph() {
     // Clear existing graph
@@ -146,7 +163,8 @@ function initButtons() {
         addProcess: document.getElementById("add-process"),
         addResource: document.getElementById("add-resource"),
         clearGraph: document.getElementById("clear-graph"),
-        detectDeadlock: document.getElementById("detect-deadlock")
+        detectDeadlock: document.getElementById("detect-deadlock"),
+        saveGraph: document.getElementById("save-graph") // Ensure save button is included
     };
 
     // Check all buttons exist
@@ -213,11 +231,20 @@ function initButtons() {
         const available = Array(resources.length).fill(0);
         const totalResources = Array(resources.length).fill(0);
 
-        // Calculate total resources (count assignments)
+        // Initialize total resources (1 per resource)
+        totalResources.fill(1);
+        
+        // Count actual assignments
         graph.links.forEach(link => {
             if (link.type === "assignment") {
                 const rIdx = resources.findIndex(r => r === link.target);
-                if (rIdx !== -1) totalResources[rIdx]++;
+                if (rIdx !== -1) {
+                    if (totalResources[rIdx] > 0) {
+                        totalResources[rIdx]--;
+                    } else {
+                        console.error(`Resource R${rIdx+1} over-allocated!`);
+                    }
+                }
             }
         });
 
@@ -237,14 +264,26 @@ function initButtons() {
         });
 
         // Calculate available resources (total - allocated)
-        // Initialize all resources as available (1 instance each)
+        // Initialize based on total instances (1 per resource type)
         available.fill(1);
         // Subtract allocated resources
         allocation.forEach(row => {
             row.forEach((alloc, i) => {
-                if (alloc) available[i]--;
+                if (alloc) {
+                    if (available[i] > 0) {
+                        available[i]--;
+                    } else {
+                        console.error(`Resource overallocation detected for R${i+1}`);
+                        available[i] = 0;
+                    }
+                }
             });
         });
+
+        // Debug output
+        console.log("Allocation Matrix:", allocation);
+        console.log("Request Matrix:", request);
+        console.log("Available Resources:", available);
 
         // Improved Banker's algorithm implementation
         const work = [...available];
@@ -253,6 +292,8 @@ function initButtons() {
         let deadlock = false;
         let count = 0;
         const maxIterations = processes.length * 2; // Prevent infinite loops
+
+        console.log("Initial Work:", work);
 
         while (count < maxIterations) {
             let found = false;
@@ -275,9 +316,15 @@ function initButtons() {
 
         // Check for deadlock
         deadlock = finish.some(f => !f);
+        console.log("Final Work:", work);
+        console.log("Final Finish Array:", finish);
+        console.log("Deadlock Detected:", deadlock);
+        console.log("Safe Sequence:", safeSequence);
 
         // Visual feedback with more details
         if (deadlock) {
+            console.log("Deadlocked Processes:", 
+                processes.filter((p, i) => !finish[i]).map(p => p.id));
             const deadlocked = processes.filter((p, i) => !finish[i]);
             deadlocked.forEach(p => {
                 svg.selectAll(".node")
